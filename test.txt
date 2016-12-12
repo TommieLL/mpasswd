@@ -1,0 +1,2 @@
+axelsson:x:12856:1101:Björn Axelsson:/Home/staff/axelsson:/usr/local/bin/tcsh
+mr:x:1171:1101:Mikael Rännar:/Home/staff/mr:/usr/local/bin/tcsh
