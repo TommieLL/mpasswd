@@ -3,9 +3,9 @@
 #include "list.h"
 
 /*
-Purpose:    Creates a new empty list.
-Returns:    A pointer to the new list.
-Comments:	List needs to be free'd when finished using.
+* Purpose:    Creates a new empty list.
+* Returns:    A pointer to the new list.
+* Comments:   List needs to be free'd when finished using.
 */
 LinkedList *list_empty(void)
 {
@@ -73,11 +73,18 @@ node *list_insert(node *n, void *v)
 	return n2;
 }
 
+/*
+Purpose: Remove the list.
+Parameters: node pointer, LinkedList
+Returns: node pointer.
+*/
 node *list_remove(node *n, LinkedList *l)
 {
 	node *temp = n->next->next;
 
-	if(l->freeFunc != NULL) l->freeFunc(n->next->value);
+	if(l->freeFunc != NULL){
+	 l->freeFunc(n->next->value);
+	 }
 
 	free(n->next);
 
@@ -89,16 +96,30 @@ node *list_remove(node *n, LinkedList *l)
 	return n;
 }
 
+/*
+Purpose: Inspect data at specific place in the list.
+Parameters: node pointer
+Returns: value.
+*/
 void *list_inspect(node *n)
 {
 	return (n->next->value);
 }
 
+/*
+Purpose: Check if this value is last in the list.
+Parameters: node pointer
+Returns: boolean
+*/
 bool list_isEnd(node *n)
 {
 	return (n->next == NULL);
 }
 
+/*
+Prupose: To free memory from the list.
+Parameters: LinkedList
+*/
 void list_free(LinkedList *l)
 {
 

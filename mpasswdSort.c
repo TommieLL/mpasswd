@@ -1,6 +1,6 @@
 
 /* mpasswdsort.c
- *  Tommie Lindberg (c15tlgn@cs.umu.se)
+ *  Tommie Lindberg (c15tlg@cs.umu.se)
  *
  *  Sorterar användare efter UID givet en passwd-fil
  */
@@ -8,8 +8,11 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <ctype.h>
 
-//#define BUF_SIZE 1<<10
+#include "mpasswdSort.h"
+
+#define BUF_SIZE 1<<10
 
 typedef struct node {
     unsigned int uid;
@@ -19,28 +22,28 @@ typedef struct node {
 
 typedef node * list;
 
-node *createStruct(void);
-list readFile(FILE *fp);
-bool ifDuplicate(list, int, char *);
-node *create_node(void);
-void listBubbleSort(list);
-void printList(list);
+bool isEmpty(FILE *file);
+node *createNewNode(void);
+char *strtok_single (char * str, char const * delims);
+list readFile(FILE *, int *failed);
+void bubbleSort(list);
 void freeList(list);
 
-
+//Global int
+int failed;
 
 
 
 /*
- * Main entry point.
+ * Main loop.
  */
 int main(int argc, const char *argv[]) {
 
 
-    FILE* fp;
+    FILE* fp = stdin;
 
 
-    if (argc == 2 ) {
+    if (argc > 1) {
         fp = fopen(argv[1], "r");
 
         if(fp == NULL){
@@ -50,27 +53,64 @@ int main(int argc, const char *argv[]) {
         }else if (argc < 2) {
             fp = stdin;
 
-        } else {
-            fprintf(stderr, "Too many input arguments: %d.\n", argc);
-            return EXIT_FAILURE;
+        }
+     }
 
-            }
+    //If there's an empty file
+    if(isEmpty(fp)){
+        fclose(fp);
+        return EXIT_SUCCESS;
+    }
+    
+    // Read data from the file.
+    list l = readFile(fp, &failed);
+    //Close file.
+    fclose(fp);
+    
+    //Sort list with bubbelsort.
+    bubbleSort(l);
+    
+    //Print the list.
+    for (node *n = l; n->next; n = n->next) {
+        printf("%d:%s\n", n->uid, n->uname);
+    }
+    
+    if(failed > 0 ){
+        freeList(l);
+        return EXIT_FAILURE;
+    }
+    //If there's a file with only errors
+    if(l->next == NULL){
+        freeList(l);
+        return EXIT_FAILURE;
+    }
+    
+    //If all succedded.
+    freeList(l);
+    return EXIT_SUCCESS;
+}
 
+/*
+ * Purpose: To chech if a file is empty
+ * Returns: True or false.
+ */
+bool isEmpty(FILE *file){
+    long savedOffset = ftell(file);
+    fseek(file, 0, SEEK_END);
+
+    if (ftell(file) == 0){
+    
+        return true;
     }
 
-    list l = readFile(fp);
-    fclose(fp);
-    listBubbleSort(l);
-    printList(l);
-    freeList(l);
-
-    return EXIT_SUCCESS;
+    fseek(file, savedOffset, SEEK_SET);
+    return false;
 }
 
 /*
  * Create new node and return it.
  */
-node *createStruct(void) {
+node *createNewNode(void) {
     node *n = malloc(sizeof(node));
 
     if (!n) {
@@ -85,52 +125,103 @@ node *createStruct(void) {
 }
 
 /*
- * Find duplicate in list.
- * Return true if node with uid and uname is found, false otherwise.
- */
-bool ifDuplicate(list l, int uid, char *uname) {
-    for (node *n = l; n->next; n = n->next) {
-        if (n->uid == uid || strcmp(n->uname, uname) == 0)
-            return true;
-    }
+ * Purpose: To seperate a string with data.
+ * Returns: A pointer to the data that has been found.
+ */ 
+char *strtok_single (char * str, char const * delims)
+{
+  static char  * src = NULL;
+  char  *  p,  * ret = 0;
 
-    return false;
+  if (str != NULL)
+    src = str;
+
+  if (src == NULL)
+    return NULL;
+
+  if ((p = strpbrk (src, delims)) != NULL) {
+    *p  = 0;
+    ret = src;
+    src = ++p;
+
+  } else if (*src) {
+    ret = src;
+    src = NULL;
+  }
+
+  return ret;
 }
+
 /*
- * Read uid and uname from file pointer to list.
+ * Purpose: Read uid and uname from a file pointer to a list.
+ * Returns: A list containing the uid and uname.
  */
-list readFile(FILE *fp) {
-    char buffer[10];
-    node *a = createStruct();
+list readFile(FILE *fp, int *failed) {
+    char buffer[BUF_SIZE];
+    node *a = createNewNode();
     node *b = a;
 
     for (int l = 1; fgets(buffer, sizeof(buffer), fp); l++) {
-        char *uname = strtok(buffer, ":");
-        strtok(NULL, ":");  // Skip to the next separator
-        char *uid = strtok(NULL, ":");
+        char *uname = strtok_single(buffer, ":");
+        strtok_single(NULL, ":");  // Skip to the next separator
+        char *uid = strtok_single(NULL, ":");
+        char *gid = strtok_single(NULL, ":");
+        
 
-        if (!uname || !uid) {
+        if (!uname || !uid || !gid) {
             fprintf(stderr, "Error on line %d: wrong in the input\n", l);
+            *failed = *failed +1;
             continue;
         }
 
         // Try to parse uid to number
         // Special case: uid 0 is noId
         int id = atoi(uid);
+        int gi = atoi(gid);
+        
+        
         bool noId = strcmp(uid, "0") == 0;
-
-        if (id == 0 && !noId) {
+        bool noGid = strcmp(gid,"0") == 0;
+        
+        //Test UID
+        if (id == 0 && !noId && !(id>0)) {
             fprintf(stderr, "Error on line %d: Could not parse uid from input\n", l);
+            *failed = *failed +1;
             continue;
         }
-
-        // Unames and uids are unique.
-        // Don't add duplicate lines.
-        if (ifDuplicate(a, id, uname)) {
-            fprintf(stderr, "Error on line %d: A duplicate of a user has been found\n", l);
+        if(snprintf(0,0,"%s",uid) > snprintf(0,0,"%+d",id)){
+            fprintf(stderr,"Error on line %d: UID can only contain numbers\n", l);
+            *failed = *failed +1;
             continue;
         }
-
+        
+        if( id<0 ){
+            fprintf(stderr,"Error on line %d: Uid can't be a negative number\n",l);
+            *failed = *failed +1;
+            continue;
+        }
+        
+        //Test GID
+        if(gi == 0 && !noGid && !(gi>0)){
+            fprintf(stderr,"Error on line %d: Invalid format(no gid)\n", l);
+            *failed = *failed +1;
+            continue;
+        }
+        
+        if(snprintf(0,0,"%s",gid) > snprintf(0,0,"%+d",gi)){
+            fprintf(stderr,"Error on line %d: Gid can only contain numbers\n", l);
+            *failed = *failed +1;
+            continue;
+        }
+        
+        if( gi<0 ){
+            fprintf(stderr,"Error on line %d: Gid can't be a negative number\n",l);
+            *failed = *failed +1;
+            continue;
+        }
+        
+      
+        
         b->uid = id;
         b->uname = malloc(strlen(uname) + 1);
 
@@ -140,29 +231,21 @@ list readFile(FILE *fp) {
         }
 
         strcpy(b->uname, uname);
-        b->next = createStruct();
+        b->next = createNewNode();
         b = b->next;
     }
 
     return a;
 }
-/*
- * Print list.
- */
-void printList(list l) {
-    for (node *n = l; n->next; n = n->next) {
-        printf("%d:%s\n", n->uid, n->uname);
-    }
-}
 
 /*
- * Sort list with bubble sort.
+ * Purpose: To sort the list by uid.
  */
-void listBubbleSort(list l) {
+void bubbleSort(list l) {
     for (node *a = l; a->next; a = a->next) {
         for (node *b = a->next; b->next; b = b->next) {
             if (a->uid < b->uid) continue;
-            node *temp = createStruct();
+            node *temp = createNewNode();
             temp->uname = a->uname;
             temp->uid = a->uid;
             a->uname = b->uname;
@@ -175,7 +258,7 @@ void listBubbleSort(list l) {
 }
 
 /*
- * Free all nodes.
+ * Purpose: To free all memory the list has used.
  */
 void freeList(list l) {
     while (l->next) {

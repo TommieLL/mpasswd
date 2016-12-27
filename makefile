@@ -1,16 +1,19 @@
-CC=gcc
+# Makefile
+# Created by Tommie Lindberg ( c15tlg )
 
-CFLAGS = -std=c11 -Wall -Wextra -Werror -Wmissing-declarations -Wmissing-prototypes -Werror-implicit-function-declaration -Wreturn-type -Wparentheses -Wunused -Wold-style-definition -Wundef -Wshadow -Wstrict-prototypes -Wswitch-default -Wstrict-prototypes
+CC = gcc
 
-DEPS = list.h
+CFLAGS += -Wall -Wextra -Werror -Wmissing-declarations -Wmissing-prototypes -Werror-implicit-function-declaration -Wreturn-type -Wparentheses -Wunused -Wold-style-definition -g -std=c11 
 
-OBJ = mainu.o list.o 
+OBJS = list.o
 
-.PHONY: all
-all: mpasswdsort
+all: ${OBJS}
+	${CC} ${CFLAGS} mpasswdSort.c ${OBJS} -o mpasswdsort
 
-%.o: %.c $(DEPS)
-	$(CC) -c -o $@ $< $(CFLAGS)
+list.o: list.c list.h
 
-mpasswdsort: $(OBJ)
-	gcc -o $@ $^ $(CFLAGS)
+clean:
+	@rm -rf mpasswdSort *.o *.dSYM
+
+.PHONY: all clean
+
